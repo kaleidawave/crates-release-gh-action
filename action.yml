@@ -5,10 +5,10 @@ inputs:
     description: "version to release under. can be major/minor/patch or semver. defaults to patch"
     required: false
     default: "patch"
-  crates_token:
+  crates-token:
     description: "crates.io token for publishing"
     required: true
-  working_directory:
+  working-directory:
     description: "directory which Cargo.toml is under"
     required: false
     default: "."
@@ -35,15 +35,15 @@ runs:
       if: ${{ contains(inputs.version, '.') }}
       run: echo "NEW_CRATE_VERSION=$( cargo set-version ${{ inputs.version }} | awk '{print $NF}'  )" >> $GITHUB_ENV
       shell: bash
-      working-directory: {{ inputs.working_directory }}
+      working-directory: ${{ inputs.working-directory }}
     - name: Set version bump
       if: ${{ !contains(inputs.version, '.') }}
       run: echo "NEW_CRATE_VERSION=$( cargo set-version --bump ${{ inputs.version }} | awk '{print $NF}' )" >> $GITHUB_ENV
       shell: bash
-      working-directory: {{ inputs.working_directory }}
+      working-directory: ${{ inputs.working-directory }}
     - name: Publish on crates.io
       run: cargo publish --allow-dirty
       env:
-        CARGO_REGISTRY_TOKEN: ${{ inputs.crates_token }}
+        CARGO_REGISTRY_TOKEN: ${{ inputs.crates-token }}
       shell: bash
-      working-directory: {{ inputs.working_directory }}
+      working-directory: ${{ inputs.working-directory }}
