@@ -29,7 +29,7 @@ runs:
           ~/.cargo/git
         key: ${{ runner.os }}-cargo
     - name: Install cargo edit
-      run: cargo install cargo-edit
+      run: cargo install cargo-edit --features set-version
       shell: bash
     - name: Set version semver
       if: ${{ contains(inputs.version, '.') }}
