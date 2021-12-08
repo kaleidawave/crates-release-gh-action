@@ -36,6 +36,7 @@ jobs:
           git config user.email github-actions@github.com
       - name: Crates publish
         uses: kaleidawave/crates-release-gh-action@v1
+        id: release
         with:
           version: ${{ github.event.inputs.version }}
           crates-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}

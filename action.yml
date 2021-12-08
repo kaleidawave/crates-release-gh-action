@@ -1,5 +1,6 @@
 name: "crates-release"
 description: "Increment crate version and release on crates.io"
+
 inputs:
   version:
     description: "version to release under. can be major/minor/patch or semver. defaults to patch"
@@ -16,20 +17,14 @@ inputs:
 outputs:
   new-version:
     description: "New version released under"
-    value: ${{ env.NEW_CRATE_VERSION }}
+    value: ${{ steps.set-output.outputs.new-version }}
 
 runs:
   using: "composite"
   steps:
     - uses: actions/checkout@v2
-    - uses: actions/cache@v2
-      with:
-        path: |
-          ~/.cargo/registry
-          ~/.cargo/git
-        key: ${{ runner.os }}-cargo
     - name: Install cargo edit
-      run: cargo install cargo-edit --features set-version
+      run: brew install cargo-edit
       shell: bash
     - name: Set version semver
       if: ${{ contains(inputs.version, '.') }}
@@ -47,3 +42,9 @@ runs:
         CARGO_REGISTRY_TOKEN: ${{ inputs.crates-token }}
       shell: bash
       working-directory: ${{ inputs.working-directory }}
+    - name: Echo release
+      run: echo "Released crate under version ${{ env.NEW_CRATE_VERSION }}"
+      shell: bash
+    - id: set-output
+      run: echo "::set-output name=new-version::${{ env.NEW_CRATE_VERSION }}"
+      shell: bash
