@@ -28,12 +28,18 @@ runs:
       shell: bash
     - name: Set version semver
       if: ${{ contains(inputs.version, '.') }}
-      run: echo "NEW_CRATE_VERSION=$( cargo set-version ${{ inputs.version }} | awk '{print $NF}'  )" >> $GITHUB_ENV
+      run: >
+        echo "NEW_CRATE_VERSION=$( 
+          cargo set-version ${{ inputs.version }} | awk 'NR==1 {print $NF}'  
+        )" >> $GITHUB_ENV
       shell: bash
       working-directory: ${{ inputs.working-directory }}
     - name: Set version bump
       if: ${{ !contains(inputs.version, '.') }}
-      run: echo "NEW_CRATE_VERSION=$( cargo set-version --bump ${{ inputs.version }} | awk '{print $NF}' )" >> $GITHUB_ENV
+      run: >
+        echo "NEW_CRATE_VERSION=$( 
+          cargo set-version --bump ${{ inputs.version }} | awk 'NR==1 {print $NF}' 
+        )" >> $GITHUB_ENV
       shell: bash
       working-directory: ${{ inputs.working-directory }}
     - name: Publish on crates.io

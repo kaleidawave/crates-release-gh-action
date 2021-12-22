@@ -5,10 +5,10 @@ Action for automatic incrementing of crate version and publishing to crates.io
 Inputs: 
 - `version`, the new version can be major/minor/patch or semver. Defaults to "patch"
 - `crates-token`, A crates.io publishing token
-- `working-directory`, The directory which `Cargo.toml` is in. Defaults to "."
+- `working-directory`, The directory which `Cargo.toml` is in. Defaults to ".". Use when updating packages in workspaces
 
 Outputs:
-- `new-version`, the new version in semver form
+- `new-version`, the new version in semver form e.g. `0.2.0`
 
 ### Example usage
 
