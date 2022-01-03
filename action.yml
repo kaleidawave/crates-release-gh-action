@@ -23,8 +23,13 @@ runs:
   using: "composite"
   steps:
     - uses: actions/checkout@v2
+      with:
+        clean: false
     - name: Install cargo edit
-      run: brew install cargo-edit
+      run: |
+        echo "::group::Installing cargo edit"
+        brew install cargo-edit
+        echo "::endgroup::"
       shell: bash
     - name: Set version semver
       if: ${{ contains(inputs.version, '.') }}
@@ -43,7 +48,10 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
     - name: Publish on crates.io
-      run: cargo publish --allow-dirty
+      run: |
+        echo "::group::Cargo publish"
+        cargo publish --allow-dirty
+        echo "::endgroup::"
       env:
         CARGO_REGISTRY_TOKEN: ${{ inputs.crates-token }}
       shell: bash
