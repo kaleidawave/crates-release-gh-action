@@ -1,11 +1,11 @@
 # Crates release GitHub action
 
-Action for automatic incrementing of crate version and publishing to crates.io
+Action for automatic incrementing of crate version and publishing to [crates.io](https://crates.io)
 
 Inputs: 
 - `version`, the new version can be major/minor/patch or semver. Defaults to "patch"
-- `crates-token`, A crates.io publishing token
-- `working-directory`, The directory which `Cargo.toml` is in. Defaults to ".". Use when updating packages in workspaces
+- `crates-token`, A crates.io publishing token (get from https://crates.io/settings/tokens)
+- `working-directory`, The directory which `Cargo.toml` is in. Defaults to ".". Use when publishing packages in workspaces
 
 Outputs:
 - `new-version`, the new version in semver form e.g. `0.2.0`
@@ -49,8 +49,17 @@ jobs:
           git push --tags origin main
 ```
 
-This can then be run either from the web gui or using the [GitHub cli](https://cli.github.com/):
+This can then be run either from the web gui: 
 
+![example usage image](demo.png)
+
+or using the [GitHub CLI](https://cli.github.com/):
 ```
 gh workflow run crates.yml -f version=patch
 ```
+
+### Examples / demos:
+
+- [syn-helpers](https://github.com/kaleidawave/syn-helpers)
+- [temporary-annex](https://github.com/kaleidawave/temporary-annex)
+- [enum-variants-strings](https://github.com/kaleidawave/enum-variants-strings) (deploys two crates)

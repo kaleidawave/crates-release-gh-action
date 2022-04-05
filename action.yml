@@ -1,5 +1,9 @@
 name: "crates-release"
 description: "Increment crate version and release on crates.io"
+branding:
+  icon: arrow-up-circle
+  color: red
+author: kaleidawave
 
 inputs:
   version:
