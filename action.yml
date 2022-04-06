@@ -35,22 +35,28 @@ runs:
         brew install cargo-edit
         echo "::endgroup::"
       shell: bash
-    - name: Set version semver
-      if: ${{ contains(inputs.version, '.') }}
-      run: >
-        echo "NEW_CRATE_VERSION=$( 
-          cargo set-version ${{ inputs.version }} | awk 'NR==1 {print $NF}'  
-        )" >> $GITHUB_ENV
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
     - name: Set version bump
-      if: ${{ !contains(inputs.version, '.') }}
+      if: ${{ contains(fromJSON('["major","minor","patch","release","rc","beta","alpha"]'), inputs.version) }}
       run: >
         echo "NEW_CRATE_VERSION=$( 
-          cargo set-version --bump ${{ inputs.version }} | awk 'NR==1 {print $NF}' 
+         (cargo set-version --bump ${{ inputs.version }} 2>&1) | awk 'NR==1 {print $NF}' 
         )" >> $GITHUB_ENV
       shell: bash
       working-directory: ${{ inputs.working-directory }}
+    - name: Set version semver
+      if: ${{ !contains(fromJSON('["major","minor","patch","release","rc","beta","alpha"]'), inputs.version) }}
+      run: >
+        echo "NEW_CRATE_VERSION=$( 
+         (cargo set-version ${{ inputs.version }} 2>&1) | awk 'NR==1 {print $NF}' 
+        )" >> $GITHUB_ENV
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+    - name: Check that version is set
+      if: env.NEW_CRATE_VERSION == ''
+      uses: actions/github-script@v6
+      with:
+        script: core.setFailed('Error setting the new version')
+      shell: bash
     - name: Publish on crates.io
       run: |
         echo "::group::Cargo publish"
@@ -60,9 +66,6 @@ runs:
         CARGO_REGISTRY_TOKEN: ${{ inputs.crates-token }}
       shell: bash
       working-directory: ${{ inputs.working-directory }}
-    - name: Echo release
-      run: echo "Released crate under version ${{ env.NEW_CRATE_VERSION }}"
-      shell: bash
     - id: set-output
       run: echo "::set-output name=new-version::${{ env.NEW_CRATE_VERSION }}"
       shell: bash
