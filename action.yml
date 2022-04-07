@@ -56,7 +56,6 @@ runs:
       uses: actions/github-script@v6
       with:
         script: core.setFailed('Error setting the new version')
-      shell: bash
     - name: Publish on crates.io
       run: |
         echo "::group::Cargo publish"
