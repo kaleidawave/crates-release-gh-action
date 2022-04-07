@@ -26,9 +26,11 @@ outputs:
 runs:
   using: "composite"
   steps:
+    - id: check-repo-is-not-initialized
+      run: echo "::set-output name=remote-url::$( git config --get remote.origin.url )"
+      shell: bash
     - uses: actions/checkout@v2
-      with:
-        clean: false
+      if: ${{ !contains(steps.check-repo-is-not-initialized.outputs.remote-url, github.repository) }}
     - name: Install cargo edit
       run: |
         echo "::group::Installing cargo edit"
