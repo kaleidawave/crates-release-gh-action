@@ -27,10 +27,12 @@ runs:
   using: "composite"
   steps:
     - id: check-repo-is-not-initialized
-      run: echo "::set-output name=remote-url::$( git config --get remote.origin.url )"
+      run: echo "name=remote-url::$( git config --get remote.origin.url )" >> $GITHUB_OUTPUT
       shell: bash
-    - uses: actions/checkout@v2
+
+    - uses: actions/checkout@v3
       if: ${{ !contains(steps.check-repo-is-not-initialized.outputs.remote-url, github.repository) }}
+
     - name: Install cargo edit
       run: |
         echo "::group::Installing cargo edit"
@@ -38,27 +40,31 @@ runs:
         cargo quickinstall cargo-edit
         echo "::endgroup::"
       shell: bash
-    - name: Set version bump
+
+    - name: Bump version
       if: ${{ contains(fromJSON('["major","minor","patch","release","rc","beta","alpha"]'), inputs.version) }}
       run: >
-        echo "NEW_CRATE_VERSION=$( 
-         (cargo set-version --bump ${{ inputs.version }} 2>&1) | awk 'NR==1 {print $NF}' 
+        echo "NEW_CRATE_VERSION=$(
+         (cargo set-version --bump ${{ inputs.version }} 2>&1) | awk 'NR==1 {print $NF}'
         )" >> $GITHUB_ENV
       shell: bash
       working-directory: ${{ inputs.working-directory }}
-    - name: Set version semver
+
+    - name: Set version (semver)
       if: ${{ !contains(fromJSON('["major","minor","patch","release","rc","beta","alpha"]'), inputs.version) }}
       run: >
-        echo "NEW_CRATE_VERSION=$( 
-         (cargo set-version ${{ inputs.version }} 2>&1) | awk 'NR==1 {print $NF}' 
+        echo "NEW_CRATE_VERSION=$(
+         (cargo set-version ${{ inputs.version }} 2>&1) | awk 'NR==1 {print $NF}'
         )" >> $GITHUB_ENV
       shell: bash
       working-directory: ${{ inputs.working-directory }}
+
     - name: Check that version is set
       if: env.NEW_CRATE_VERSION == ''
       uses: actions/github-script@v6
       with:
         script: core.setFailed('Error setting the new version')
+
     - name: Publish on crates.io
       run: |
         echo "::group::Cargo publish"
@@ -68,6 +74,7 @@ runs:
         CARGO_REGISTRY_TOKEN: ${{ inputs.crates-token }}
       shell: bash
       working-directory: ${{ inputs.working-directory }}
+
     - id: set-output
-      run: echo "::set-output name=new-version::${{ env.NEW_CRATE_VERSION }}"
+      run: echo "name=new-version::${{ env.NEW_CRATE_VERSION }}" >> $GITHUB_OUTPUT
       shell: bash
