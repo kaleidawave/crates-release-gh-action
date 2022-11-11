@@ -27,7 +27,7 @@ runs:
   using: "composite"
   steps:
     - id: check-repo-is-not-initialized
-      run: echo "name=remote-url::$( git config --get remote.origin.url )" >> $GITHUB_OUTPUT
+      run: echo "remote-url=$( git config --get remote.origin.url )" >> $GITHUB_OUTPUT
       shell: bash
 
     - uses: actions/checkout@v3
@@ -76,5 +76,5 @@ runs:
       working-directory: ${{ inputs.working-directory }}
 
     - id: set-output
-      run: echo "name=new-version::${{ env.NEW_CRATE_VERSION }}" >> $GITHUB_OUTPUT
+      run: echo "new-version=${{ env.NEW_CRATE_VERSION }}" >> $GITHUB_OUTPUT
       shell: bash
