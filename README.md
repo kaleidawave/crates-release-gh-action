@@ -42,10 +42,10 @@ jobs:
           crates-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Push updated Cargo.toml
         run: |
-          firstUpdateVersion=$(echo '${{ steps.release.outputs.new-version }}' | jq -r '.[0]')
+          firstUpdateVersion=$(echo '${{ steps.release.outputs.new-versions }}' | jq -r '.[0]')
           git tag "v$firstUpdateVersion"
           git add .
-          git commit -m "Release: ${{ steps.release.outputs.new-version-description }}"
+          git commit -m "Release: ${{ steps.release.outputs.new-versions-description }}"
           git push --tags origin main
 ```
 
