@@ -3,12 +3,12 @@
 Action for automatic incrementing of crate version and publishing to [crates.io](https://crates.io)
 
 Inputs: 
-- `version`, the new version can be major/minor/patch or semver. Defaults to "patch"
+- `version`, A version argument, Can be major/minor/patch or semver. For monorepos a JSON map of crate name to release argument
 - `crates-token`, A crates.io publishing token (get from https://crates.io/settings/tokens)
-- `working-directory`, The directory which `Cargo.toml` is in. Defaults to ".". Use when publishing packages in workspaces
 
 Outputs:
-- `new-version`, the new version in semver form e.g. `0.2.0`
+- `new-version`, A JSON array of crates and their new version e.g. `[0.2.0]`. For monorepos this is `["*crate-name*-*version*"]`
+- `new-version-description`, For single projects the literal new version. For monorepos a chain of results e.g. `crate1 to 0.1.0, crate2 to 0.2.0 and crate3 to 0.3.0`
 
 ### Example usage
 
@@ -40,12 +40,12 @@ jobs:
         with:
           version: ${{ github.event.inputs.version }}
           crates-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-          working-directory: .
       - name: Push updated Cargo.toml
         run: |
-          git tag "v${{ steps.release.outputs.new-version }}"
+          firstUpdateVersion=$(echo '${{ steps.release.outputs.new-version }}' | jq -r '.[0]')
+          git tag "v$firstUpdateVersion"
           git add .
-          git commit -m "Release: ${{ steps.release.outputs.new-version }}"
+          git commit -m "Release: ${{ steps.release.outputs.new-version-description }}"
           git push --tags origin main
 ```
 

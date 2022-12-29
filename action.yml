@@ -1,5 +1,5 @@
-name: "crates-release"
-description: "Increment crate version and release on crates.io"
+name: crates-release
+description: Increment crate version and release on crates.io
 branding:
   icon: arrow-up-circle
   color: red
@@ -7,21 +7,19 @@ author: kaleidawave
 
 inputs:
   version:
-    description: "version to release under. can be major/minor/patch or semver. defaults to patch"
-    required: false
-    default: "patch"
-  crates-token:
-    description: "crates.io token for publishing"
+    description: A version argument, Can be major/minor/patch or semver. For monorepos a JSON map of crate name to release argument
     required: true
-  working-directory:
-    description: "directory which Cargo.toml is under"
-    required: false
-    default: "."
+  crates-token:
+    description: crates.io token for publishing
+    required: true
 
 outputs:
-  new-version:
-    description: "New version released under"
-    value: ${{ steps.set-output.outputs.new-version }}
+  new-versions:
+    description: A JSON array of crates and their new version
+    value: ${{ env.NEW_VERSION }}
+  new-versions-description:
+    description: A outline of what was updated to what versions
+    value: ${{ env.NEW_VERSION_DESCRIPTION }}
 
 runs:
   using: "composite"
@@ -33,37 +31,15 @@ runs:
     - uses: actions/checkout@v3
       if: ${{ !contains(steps.check-repo-is-not-initialized.outputs.remote-url, github.repository) }}
 
-    - name: Install cargo edit
+    - name: Install dependencies (pip)
+      run: pip install tomlkit==0.11.6 semver==2.13.0
+      shell: bash
+
+    - name: Run script
+      id: updator
       run: |
-        echo "::group::Installing cargo edit"
-        cargo install cargo-quickinstall
-        cargo quickinstall cargo-edit
-        echo "::endgroup::"
+        python ${{ github.action_path }}/updator.py
       shell: bash
-
-    - name: Bump version
-      if: ${{ contains(fromJSON('["major","minor","patch","release","rc","beta","alpha"]'), inputs.version) }}
-      run: >
-        echo "NEW_CRATE_VERSION=$(
-         (cargo set-version --bump ${{ inputs.version }} 2>&1) | awk 'NR==1 {print $NF}'
-        )" >> $GITHUB_ENV
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-
-    - name: Set version (semver)
-      if: ${{ !contains(fromJSON('["major","minor","patch","release","rc","beta","alpha"]'), inputs.version) }}
-      run: >
-        echo "NEW_CRATE_VERSION=$(
-         (cargo set-version ${{ inputs.version }} 2>&1) | awk 'NR==1 {print $NF}'
-        )" >> $GITHUB_ENV
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-
-    - name: Check that version is set
-      if: env.NEW_CRATE_VERSION == ''
-      uses: actions/github-script@v6
-      with:
-        script: core.setFailed('Error setting the new version')
 
     - name: Publish on crates.io
       run: |
@@ -72,9 +48,4 @@ runs:
         echo "::endgroup::"
       env:
         CARGO_REGISTRY_TOKEN: ${{ inputs.crates-token }}
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-
-    - id: set-output
-      run: echo "new-version=${{ env.NEW_CRATE_VERSION }}" >> $GITHUB_OUTPUT
       shell: bash
