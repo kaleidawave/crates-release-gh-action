@@ -38,7 +38,7 @@ runs:
     - name: Run script
       id: updator
       run: |
-        python ${{ github.action_path }}/updator.py
+        python ${{ github.action_path }}/updator.py '${{ inputs.version }}'
       shell: bash
 
     - name: Publish on crates.io

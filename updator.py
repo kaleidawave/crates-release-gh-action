@@ -4,6 +4,7 @@ from glob import glob
 from os import path
 from semver import bump_major, bump_minor, bump_patch, VersionInfo
 import json
+import sys
 
 cargo_tomls = [path for path in glob("**/Cargo.toml", recursive=True) if not path.startswith("target")]
 
@@ -72,9 +73,9 @@ def format_change_list(iter):
 		msg += f"{name} to {value}"
 	return msg
 
-argument = environ['INPUT_VERSION']
+argument = sys.argv[1]
 
-try:
+if argument.startswith("{"):
 	arguments = json.loads(argument)
 	for crate_name, argument in arguments.items():
 		if argument is None:
@@ -115,11 +116,11 @@ try:
 		print(f"new-versions-description={format_change_list(upgraded_crates.items())}", file=f)
 		print(f"new-versions={changes}", file=f)
 
-except json.JSONDecodeError:
+else:
 	if len(cargo_tomls) == 1:
 		_, new_version = update_cargo_toml(cargo_tomls[0], argument, manifest_cache)
 		with open(environ["GITHUB_OUTPUT"], 'w') as f:
 			print(f"new-versions-description={new_version}", file=f)
 			print(f"new-versions=[\"{new_version}\"]", file=f)
 	else:
-		raise ValueError(f"Found multiple 'Cargo.toml's {cargo_tomls}")
+		raise ValueError(f"Expected single 'Cargo.toml' for non-JSON '{argument}' argument, found: {cargo_tomls}")
