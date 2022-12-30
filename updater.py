@@ -8,8 +8,6 @@ import sys
 
 cargo_tomls = [path for path in glob("**/Cargo.toml", recursive=True) if not path.startswith("target")]
 
-upgraded_crates, manifest_cache = dict(), dict()
-
 def toml_to_dict(path, cache):
 	if path in cache:
 		return cache[path]
@@ -39,8 +37,6 @@ def bump_version(existing_version, behavior):
 			return bump_minor(existing_version)
 		case "major":
 			return bump_major(existing_version)
-		case "none":
-			return existing_version
 		case _:
 			raise ValueError(f"Expected 'patch', 'minor', 'major' or 'none'. Found '{behavior}'")
 
@@ -75,12 +71,16 @@ def format_change_list(iter):
 		msg += f"{name} to {value}"
 	return msg
 
+upgraded_crates, manifest_cache = dict(), dict()
+
 argument = sys.argv[1]
 
 if argument.startswith("{"):
 	arguments = json.loads(argument)
+	updated_paths = []
+
 	for crate_name, argument in arguments.items():
-		if argument is None:
+		if argument is None or argument == "none":
 			continue
 
 		path_finder = (path for path in cargo_tomls if try_get_name(toml_to_dict(path, manifest_cache)) == crate_name)
@@ -111,12 +111,17 @@ if argument.startswith("{"):
 					write(other_path, other_manifest)
 
 		upgraded_crates[crate_name] = new_version
+		updated_paths.append(crate_manifest_path)
 
 	changes = "[" + ",".join(map(lambda t: f"\"{t[0]}-{t[1]}\"", upgraded_crates.items())) + "]"
+	# Assume that dependencies are last
+	updated_paths.reverse()
+	updated_paths_json = "[" + ",".join(map(lambda c: f"\"{c}\"", updated_paths)) + "]"
 
 	with open(environ["GITHUB_OUTPUT"], 'w') as f:
 		print(f"new-versions-description={format_change_list(upgraded_crates.items())}", file=f)
 		print(f"new-versions={changes}", file=f)
+		print(f"updated-cargo-toml-paths={updated_paths_json}", file=f)
 
 else:
 	if len(cargo_tomls) == 1:
@@ -124,5 +129,6 @@ else:
 		with open(environ["GITHUB_OUTPUT"], 'w') as f:
 			print(f"new-versions-description={new_version}", file=f)
 			print(f"new-versions=[\"{new_version}\"]", file=f)
+			print(f"updated-cargo-toml-paths=[\"{cargo_tomls[0]}\"]", file=f)
 	else:
 		raise ValueError(f"Expected single 'Cargo.toml' for non-JSON '{argument}' argument, found: {cargo_tomls}")
