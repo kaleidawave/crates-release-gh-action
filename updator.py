@@ -31,16 +31,18 @@ def try_get_version(toml):
 	except:
 		return None
 
-def bump_version(version, behavior):
+def bump_version(existing_version, behavior):
 	match behavior:
 		case "patch":
-			return bump_patch(version)
+			return bump_patch(existing_version)
 		case "minor":
-			return bump_minor(version)
+			return bump_minor(existing_version)
 		case "major":
-			return bump_major(version)
+			return bump_major(existing_version)
+		case "none":
+			return existing_version
 		case _:
-			raise ValueError(f"Expected 'patch', 'minor' or 'major'. Found '{behavior}'")
+			raise ValueError(f"Expected 'patch', 'minor', 'major' or 'none'. Found '{behavior}'")
 
 def write(path, toml):
 	with open(path, "w") as f:
