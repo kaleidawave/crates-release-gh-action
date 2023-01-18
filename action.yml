@@ -46,6 +46,8 @@ runs:
         echo "::group::Cargo publish"
         echo '${{ steps.updater.outputs.updated-cargo-toml-paths }}' | jq -r '.[]' | while read -r updated; do
           cargo publish --allow-dirty --manifest-path $updated
+          # Allow publish to synchronous with crates.io
+          sleep 15
         done
         echo "::endgroup::"
       env:
