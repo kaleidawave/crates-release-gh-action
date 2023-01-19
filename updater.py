@@ -31,7 +31,7 @@ output = subprocess.run(command, capture_output=True).stdout
 packages = json.loads(output)["packages"]
 
 flat_packages = dict()
-upgraded_crates, manifest_cache = dict(), dict()
+manifest_cache = dict()
 local_pkgs = set(map(lambda pkg: pkg["name"], packages))
 awaiting = dict()
 
@@ -92,7 +92,7 @@ def update_cargo_toml(crate_cargo_toml, argument):
 		return current_version
 	if VersionInfo.isvalid(argument):
 		if VersionInfo.parse(argument) <= VersionInfo.parse(current_version):
-			error = "New version '{argument}' must be greater than current version '{current_version}'"
+			error = f"New version '{argument}' must be greater than current version '{current_version}'"
 			raise ValueError(error)
 
 		new_version = argument
@@ -145,26 +145,27 @@ if argument.startswith("{"):
 
 		write_toml(package["manifest_path"], crate_cargo_toml)
 
-	changes = ",".join(map(lambda t: f"\"{t[0]}-{t[1]}\"", upgraded_crates.items()))
-	updated_cargo_toml_paths = ",".join(updated_manifests)
+	changes = ",".join(map(lambda t: f"\"{t[0]}-{t[1]}\"", updated_crates.items()))
 
 	with open(environ["GITHUB_OUTPUT"], 'w') as f:
-		print(f"new-versions-description={format_change_list(upgraded_crates.items())}", file=f)
+		print(f"new-versions-description={format_change_list(updated_crates.items())}", file=f)
 		print(f"new-versions=[{changes}]", file=f)
-		print(f"updated-cargo-toml-paths=[{updated_cargo_toml_paths}]", file=f)
+		print(f"updated-cargo-toml-paths={json.dumps(updated_manifests)}", file=f)
 
 else:
 	if len(packages) == 1:
 		crate_cargo_toml = toml_file_to_dict(package["manifest_path"])
 		if argument == "none":
 			raise ValueError("Argument for single package cannot be 'none'")
+
 		new_version = update_cargo_toml(packages[0]["path"], argument)
 		write_toml(package[0]["manifest_path"], crate_cargo_toml)
+		name = packages[0]['name']
 
 		with open(environ["GITHUB_OUTPUT"], 'w') as f:
 			print(f"new-versions-description={new_version}", file=f)
 			print(f"new-versions=[\"{new_version}\"]", file=f)
-			print(f"updated-cargo-toml-paths=[\"{packages[0]['name']}\"]", file=f)
+			print(f"updated-cargo-toml-paths=[\"{name}\"]", file=f)
 	else:
 		package_names = list(map(lambda pkg: pkg['name'], packages))
 		error = f"Expected single package in workspace for non-JSON '{argument}' argument, found: {package_names}"

@@ -58,6 +58,50 @@ or using the [GitHub CLI](https://cli.github.com/):
 gh workflow run crates.yml -f version=patch
 ```
 
+### Example usage in a monorepo
+
+Useful if dealing with a associated derive crate. Here is a modification of the above that supports a repository with two crates.
+
+```yml
+name: Release crate
+
+on:
+  workflow_dispatch:
+    inputs:
+      crate1:
+        description: "crate 1 major/minor/patch, a semver or none"
+        required: false
+        default: "patch"
+      crate2:
+        description: "crate 2 major/minor/patch, a semver or none"
+        required: false
+        default: "patch"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set git credentials
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+      - name: Crates publish
+        uses: kaleidawave/crates-release-gh-action@main
+        id: release
+        with:
+          version: "{\"crate1\": \"${{ github.event.inputs.version1 }}\", \"crate2\": \"${{ github.event.inputs.version2 }}\" }"
+          crates-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: Push updated Cargo.toml
+        run: |
+          echo '${{ steps.release.outputs.new-versions }}' | jq -r '.[]' | while read -r update; do
+            git tag "$update"
+          done
+          git add .
+          git commit -m "Release: ${{ steps.release.outputs.new-versions-description }}"
+          git push --tags origin main
+```
+
 ### Examples / demos:
 
 - [syn-helpers](https://github.com/kaleidawave/syn-helpers)
