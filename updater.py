@@ -4,14 +4,18 @@ Can be as simple as just one crate. However also works in monorepos.
 Has several steps:
 - Finds local `Cargo.toml`s using `cargo metadata` command
 - (for monorepos) Figures out flat dependencies
-- (for monorepos) Sorts crates in order of which they import each other
+- (for monorepos) Sorts local crates in order of which they import each other
 - Parses command line argument
-	- (for monorepos) A JSON object relates to crate-name to argument pairs. 
-	- Else just a single argument for
+	- (for monorepos) A JSON object with crate-name to argument pairs. 
+	- Else just a single argument for a single crate
 - For package(s)
-	- Applies arguments
-	- (for monorepos) Updates changes local dependencies to their updated version
-	- Saves changes to filesystem
+	- Applies argument(s) to version(s)
+	- (for monorepos) Updates version references for local dependencies to their updated version
+	- Saves changes to the filesystem
+- Prints to `GITHUB_OUTPUT`
+	- A human readable description of changes
+	- A JSON list of nuew version to crate name pairs (useful for git tagging)
+	- A JSON list of paths to publish
 """
 
 import sys
@@ -83,12 +87,17 @@ def write_toml(path, toml):
 		f.close()
 
 def update_cargo_toml(crate_cargo_toml, argument):
+	current_version = crate_cargo_toml["package"]["version"]
 	if argument == "none":
-		return crate_cargo_toml["package"]["version"]
+		return current_version
 	if VersionInfo.isvalid(argument):
+		if VersionInfo.parse(argument) <= VersionInfo.parse(current_version):
+			error = "New version '{argument}' must be greater than current version '{current_version}'"
+			raise ValueError(error)
+
 		new_version = argument
 	else:
-		new_version = bump_version(crate_cargo_toml["package"]["version"], argument)
+		new_version = bump_version(current_version, argument)
 
 	crate_cargo_toml["package"]["version"] = new_version
 
@@ -111,6 +120,7 @@ argument = sys.argv[1]
 if argument.startswith("{"):
 	arguments = json.loads(argument)
 	updated_crates = dict()
+	updated_manifests = list()
 
 	for package in packages:
 		argument = arguments.pop(package["name"], "none")
@@ -126,6 +136,7 @@ if argument.startswith("{"):
 		crate_cargo_toml = toml_file_to_dict(package["manifest_path"])
 		new_version = update_cargo_toml(crate_cargo_toml, argument)
 		updated_crates[package["name"]] = new_version
+		updated_manifests.append(package["manifest_path"])
 
 		for dependency_name, argument in crate_cargo_toml["dependencies"].items():
 			if dependency_name in local_pkgs and dependency_name in updated_crates:
@@ -135,7 +146,7 @@ if argument.startswith("{"):
 		write_toml(package["manifest_path"], crate_cargo_toml)
 
 	changes = ",".join(map(lambda t: f"\"{t[0]}-{t[1]}\"", upgraded_crates.items()))
-	updated_cargo_toml_paths = ",".join(map(lambda pkg: f"\"{pkg['manifest_path']}\"", packages))
+	updated_cargo_toml_paths = ",".join(updated_manifests)
 
 	with open(environ["GITHUB_OUTPUT"], 'w') as f:
 		print(f"new-versions-description={format_change_list(upgraded_crates.items())}", file=f)
@@ -145,6 +156,8 @@ if argument.startswith("{"):
 else:
 	if len(packages) == 1:
 		crate_cargo_toml = toml_file_to_dict(package["manifest_path"])
+		if argument == "none":
+			raise ValueError("Argument for single package cannot be 'none'")
 		new_version = update_cargo_toml(packages[0]["path"], argument)
 		write_toml(package[0]["manifest_path"], crate_cargo_toml)
 
