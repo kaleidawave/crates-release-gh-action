@@ -15,8 +15,11 @@ inputs:
 
 outputs:
   new-versions:
-    description: A JSON array of crates and their new version
+    description: A JSON array of crates and their new versions
     value: ${{ steps.updater.outputs.new-versions }}
+  new-version:
+    description: A single new version, "none" if multiple crates are updated
+    value: ${{ steps.updater.outputs.new-version }}
   new-versions-description:
     description: A outline of what was updated to what versions
     value: ${{ steps.updater.outputs.new-versions-description }}

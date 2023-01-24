@@ -7,7 +7,8 @@ Inputs:
 - `crates-token`, A crates.io publishing token (get from https://crates.io/settings/tokens)
 
 Outputs:
-- `new-versions`, A JSON array of crates and their new version e.g. `[0.2.0]`. For monorepos this is `["*crate-name*-*version*"]`
+- `new-versions`, A JSON array of crates and their new version e.g. `[0.2.0]`. For monorepos this is `["*crate-name*-*version*"]` e.g. `["my-crate-0.2.0", "other-crate-0.3.0"]`
+- `new-version`, A single new version, "none" if multiple crates are updated e.g. `[0.2.0]`.
 - `new-versions-description`, For single projects the literal new version. For monorepos a chain of results e.g. `crate1 to 0.1.0, crate2 to 0.2.0 and crate3 to 0.3.0`
 
 ### Example usage
@@ -24,6 +25,8 @@ on:
         description: "major/minor/patch or semver"
         required: false
         default: "patch"
+
+concurrency: release-crate
 
 jobs:
   publish:
@@ -42,8 +45,7 @@ jobs:
           crates-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Push updated Cargo.toml
         run: |
-          firstUpdateVersion=$(echo '${{ steps.release.outputs.new-versions }}' | jq -r '.[0]')
-          git tag "v$firstUpdateVersion"
+          git tag "release/${{ steps.release.outputs.new-version }}"
           git add .
           git commit -m "Release: ${{ steps.release.outputs.new-versions-description }}"
           git push --tags origin main
@@ -63,19 +65,21 @@ gh workflow run crates.yml -f version=patch
 Useful if dealing with a associated derive crate. Here is a modification of the above that supports a repository with two crates.
 
 ```yml
-name: Release crate
+name: Release crates
 
 on:
   workflow_dispatch:
     inputs:
-      crate1:
+      crate1-version:
         description: "crate 1 major/minor/patch, a semver or none"
         required: false
         default: "patch"
-      crate2:
+      crate2-version:
         description: "crate 2 major/minor/patch, a semver or none"
         required: false
         default: "patch"
+
+concurrency: release-crates
 
 jobs:
   publish:
@@ -90,12 +94,12 @@ jobs:
         uses: kaleidawave/crates-release-gh-action@main
         id: release
         with:
-          version: "{\"crate1\": \"${{ github.event.inputs.version1 }}\", \"crate2\": \"${{ github.event.inputs.version2 }}\" }"
+          version: "{\"crate1\": \"${{ github.event.inputs.crate1-version }}\", \"crate2\": \"${{ github.event.inputs.crate2-version }}\" }"
           crates-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Push updated Cargo.toml
         run: |
           echo '${{ steps.release.outputs.new-versions }}' | jq -r '.[]' | while read -r update; do
-            git tag "$update"
+            git tag "release/$update"
           done
           git add .
           git commit -m "Release: ${{ steps.release.outputs.new-versions-description }}"

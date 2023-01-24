@@ -150,6 +150,7 @@ if argument.startswith("{"):
 	with open(environ["GITHUB_OUTPUT"], 'w') as f:
 		print(f"new-versions-description={format_change_list(updated_crates.items())}", file=f)
 		print(f"new-versions=[{changes}]", file=f)
+		print(f"new-version=none", file=f)
 		print(f"updated-cargo-toml-paths={json.dumps(updated_manifests)}", file=f)
 
 else:
@@ -165,6 +166,7 @@ else:
 		with open(environ["GITHUB_OUTPUT"], 'w') as f:
 			print(f"new-versions-description={new_version}", file=f)
 			print(f"new-versions=[\"{new_version}\"]", file=f)
+			print(f"new-version={new_version}", file=f)
 			print(f"updated-cargo-toml-paths=[\"{name}\"]", file=f)
 	else:
 		package_names = list(map(lambda pkg: pkg['name'], packages))
