@@ -8,6 +8,7 @@ Inputs:
 
 Outputs:
 - `new-versions`, A JSON array of crates and their new version e.g. `[0.2.0]`. For monorepos this is `["*crate-name*-*version*"]` e.g. `["my-crate-0.2.0", "other-crate-0.3.0"]`
+- `new-versions-json-object`, A JSON object of crate name and  new version pairs
 - `new-version`, A single new version, "none" if multiple crates are updated e.g. `[0.2.0]`.
 - `new-versions-description`, For single projects the literal new version. For monorepos a chain of results e.g. `crate1 to 0.1.0, crate2 to 0.2.0 and crate3 to 0.3.0`
 
@@ -94,7 +95,11 @@ jobs:
         uses: kaleidawave/crates-release-gh-action@main
         id: release
         with:
-          version: "{\"crate1\": \"${{ github.event.inputs.crate1-version }}\", \"crate2\": \"${{ github.event.inputs.crate2-version }}\" }"
+          version: |
+            { 
+              "crate1": "${{ github.event.inputs.crate1-version }}", 
+              "crate2": "${{ github.event.inputs.crate2-version }}" 
+            }
           crates-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Push updated Cargo.toml
         run: |
