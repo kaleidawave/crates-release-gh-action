@@ -142,9 +142,11 @@ if argument.startswith("{"):
 		updated_manifests.append(manifest_path)
 
 		for dependency_name, argument in crate_cargo_toml["dependencies"].items():
-			if dependency_name in local_pkgs and dependency_name in updated_crates:
-				new_version = updated_crates[dependency_name]
-				argument["version"] = new_version
+			if isinstance(argument, dict):
+				dependency_name = argument.get("package", dependency_name)
+				if dependency_name in local_pkgs and dependency_name in updated_crates:
+					new_version = updated_crates[dependency_name]
+					argument["version"] = new_version
 
 		write_toml(manifest_path, crate_cargo_toml)
 
