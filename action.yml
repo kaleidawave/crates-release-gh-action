@@ -51,6 +51,7 @@ runs:
           # Wait for updates to local crates to be fully registered on crates.io
           sleep 15
           cargo publish --allow-dirty --manifest-path $updated
+          cargo update --manifest-path $updated
         done
         echo "::endgroup::"
       env:
