@@ -51,7 +51,7 @@ for package in packages:
     flat_packages[package["name"]] = dependency_names
 
 
-def package_includes_other(package1, package2):
+def package_order(package1, package2):
     global flat_packages
 
     if package1 == package2:
@@ -63,7 +63,7 @@ def package_includes_other(package1, package2):
     else:
         return 0
 
-packages = sorted(packages, key=cmp_to_key(package_includes_other))
+packages = sorted(packages, key=cmp_to_key(package_order))
 
 def toml_file_to_dict(path):
 	with open(path, "r") as f:
@@ -127,6 +127,7 @@ if argument.startswith("{"):
 		argument = arguments.pop(package["name"], "none")
 
 		if argument == "none":
+			# Check whether it needs updating because a dependency changed
 			for depedency in flat_packages[package["name"]]:
 				if depedency in updated_crates:
 					error = f"'{package['name']}' needs to be updated as '{depedency}' is updated"
@@ -154,10 +155,10 @@ if argument.startswith("{"):
 
 	# f = sys.stdout
 	with open(environ["GITHUB_OUTPUT"], 'w') as f:
+		print("new-version=none", file=f)
+		print(f"new-versions=[{changes}]", file=f)
 		print(f"new-versions-description={format_change_list(updated_crates.items())}", file=f)
 		print(f"new-versions-json-object={json.dumps(updated_crates)}", file=f)
-		print(f"new-versions=[{changes}]", file=f)
-		print("new-version=none", file=f)
 		print(f"updated-cargo-toml-paths={json.dumps(updated_manifests)}", file=f)
 
 else:
@@ -174,10 +175,10 @@ else:
 
 		# f = sys.stdout
 		with open(environ["GITHUB_OUTPUT"], 'w') as f:
-			print(f"new-versions-description={new_version}", file=f)
-			print(f"new-versions=[\"{new_version}\"]", file=f)
-			print(f"new-versions-json-object={{\"{crate_name}\":\"{new_version}\"}}", file=f)
 			print(f"new-version={new_version}", file=f)
+			print(f"new-versions=[\"{new_version}\"]", file=f)
+			print(f"new-versions-description={new_version}", file=f)
+			print(f"new-versions-json-object={{\"{crate_name}\":\"{new_version}\"}}", file=f)
 			print(f"updated-cargo-toml-paths=[\"{manifest_path}\"]", file=f)
 	else:
 		package_names = list(map(lambda pkg: pkg['name'], packages))
