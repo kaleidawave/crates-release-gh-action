@@ -12,6 +12,9 @@ inputs:
   crates-token:
     description: crates.io token for publishing
     required: true
+  publish-crates:
+    description: whether to publish to crates.io
+    default: "true"
   # TODO library
   working-directory:
     description: folder to run publish under
@@ -52,6 +55,8 @@ runs:
     working-directory: ${{ inputs.working-directory }}
 
   - name: Publish on crates.io
+    if: ${{ inputs.publish-crates == "true" }}
+    working-directory: ${{ inputs.working-directory }}
     run: |
       echo "::group::Cargo publish"
       echo '${{ steps.updater.outputs.updated-cargo-toml-paths }}' | jq -r '.[]' | while read -r updated; do
@@ -64,5 +69,3 @@ runs:
     env:
       CARGO_REGISTRY_TOKEN: ${{ inputs.crates-token }}
     shell: bash
-    working-directory: ${{ inputs.working-directory }}
-    if: ${{ inputs.crates-push == "true" }}

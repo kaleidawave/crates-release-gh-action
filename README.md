@@ -3,8 +3,10 @@
 Action for automatic incrementing of crate version and publishing to [crates.io](https://crates.io)
 
 Inputs:
-- `version`, A version argument, Can be major/minor/patch or semver. For monorepos a JSON map of crate name to release argument
-- `crates-token`, A crates.io publishing token (get from <https://crates.io/settings/tokens>)
+- `version`: a version argument, Can be major/minor/patch or semver. For monorepos a JSON map of crate name to release argument
+- `crates-token`: a crates.io publishing token (get from <https://crates.io/settings/tokens>)
+- `working-directory`: the path to where the crate is (default ".")
+- `publish-crates`: whether to publish the crates (default "true") (otherwise left to the user to implement based on outputs)
 
 Outputs:
 - `new-versions`, A JSON array of crates and their new version e.g. `[0.2.0]`. For monorepos this is `["*crate-name*-*version*"]` e.g. `["my-crate-0.2.0", "other-crate-0.3.0"]`
