@@ -36,7 +36,7 @@ jobs:
 
       - name: Build binary
         working-directory: crates-release
-        run: cargo build ${{ steps.information.outputs.BUILD_SPECIFIER }}
+        run: cargo build
         env:
           GITHUB_RUN_DATE: ${{ steps.information.outputs.GITHUB_RUN_DATE }}
           GIT_LAST_COMMIT: ${{ steps.information.outputs.GIT_LAST_COMMIT }}
@@ -44,8 +44,8 @@ jobs:
       - name: Publish binary
         working-directory: crates-release
         run: |
-          FROM="./target/$LEVEL/${{ steps.information.outputs.ASSET_PATH }}${{ matrix.executable-extension }}"
-          TO="${{ steps.information.outputs.ASSET_NAME }}-${{ matrix.platform-name }}${{ matrix.executable-extension }}"
+          FROM="./target/$LEVEL/crates-release${{ matrix.executable-extension }}"
+          TO="crates-release-${{ matrix.platform-name }}${{ matrix.executable-extension }}"
 
           gh release upload $GH_RELEASE "$FROM#$TO" --clobber
         shell: bash
