@@ -1,0 +1,14 @@
+[package]
+name = "crates-release"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+semver = "1.0.26"
+simple-json-parser = { git = "https://github.com/kaleidawave/simple-json-parser.git", branch = "improvements", version = "0.0.5" }
+simple-toml-parser = { git = "https://github.com/kaleidawave/simple-toml-parser.git", branch = "improvements", version = "0.0.0" }
+
+[[bin]]
+name = "crates-release"
+path = "main.rs"

@@ -1,0 +1,53 @@
+name: Build assets for projects
+
+on:
+  push
+
+jobs:
+  publish-assets:
+    permissions: write-all
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        include:
+        - os: windows-latest
+          platform-name: x86_64-pc-windows
+          executable-extension: ".exe"
+        - os: ubuntu-latest
+          platform-name: x86_64-unknown-linux
+
+    runs-on: ${{ matrix.os }}
+
+    env:
+      LEVEL: debug
+      GH_RELEASE: assets
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Set variables
+        id: information
+        run: |
+          echo "GITHUB_RUN_DATE=$(TZ="Europe/London" date +"%Y-%m-%d %T")" >> "$GITHUB_OUTPUT"
+          echo "GIT_LAST_COMMIT=$(git log -n 1 --format="%H")" >> "$GITHUB_OUTPUT"
+        shell: bash
+
+      - name: Build binary
+        working-directory: crates-release
+        run: cargo build ${{ steps.information.outputs.BUILD_SPECIFIER }}
+        env:
+          GITHUB_RUN_DATE: ${{ steps.information.outputs.GITHUB_RUN_DATE }}
+          GIT_LAST_COMMIT: ${{ steps.information.outputs.GIT_LAST_COMMIT }}
+        
+      - name: Publish binary
+        working-directory: crates-release
+        run: |
+          FROM="./target/$LEVEL/${{ steps.information.outputs.ASSET_PATH }}${{ matrix.executable-extension }}"
+          TO="${{ steps.information.outputs.ASSET_NAME }}-${{ matrix.platform-name }}${{ matrix.executable-extension }}"
+
+          gh release upload $GH_RELEASE "$FROM#$TO" --clobber
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
