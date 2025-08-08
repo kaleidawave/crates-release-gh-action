@@ -15,7 +15,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let rest: Vec<_> = args.collect();
             let dry_run = rest.iter().any(|arg| arg == "--dry-run");
-            let github_output = rest.iter().any(|arg| arg == "--github-actions-outputs");
 
             let transformation = Transformation(argument);
 
@@ -31,10 +30,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let output = command.output()?;
             let content = String::from_utf8(output.stdout)?;
 
-            let options = Options {
-                dry_run,
-                github_output,
-            };
+            let options = Options { dry_run };
 
             let result = {
                 use simple_json_parser::{JSONKey, RootJSONValue, parse as parse_json};
@@ -75,7 +71,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 #[derive(Clone, Copy)]
 pub struct Options {
     pub dry_run: bool,
-    pub github_output: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -109,13 +104,13 @@ fn update_toml(path: &std::path::Path, transformation: Transformation, options: 
             let existing_version = semver::Version::parse(raw).unwrap();
             let new_version_ = update_version(existing_version, &transformation).to_string();
 
-            if options.github_output {
+            let github_output_file = std::env::vars()
+                .find_map(|(name, value)| (name == "GITHUB_OUTPUT").then_some(value));
+
+            if let Some(file) = github_output_file {
                 use std::io::Write;
 
-                let file = std::env::vars()
-                    .find_map(|(name, value)| (name == "GITHUB_OUTPUT").then_some(value))
-                    .expect("no GITHUB_OUTPUT variable");
-
+                eprintln!("writing '{name}={new_version_}' to {file}");
                 writeln!(&mut File::create(file).unwrap(), "{name}={new_version_}").unwrap();
             }
 
