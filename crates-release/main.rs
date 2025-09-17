@@ -1,4 +1,5 @@
 mod update;
+mod verify;
 
 use std::str::FromStr;
 
@@ -10,16 +11,54 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             todo!("change version + cargo publish + git commit");
         }
         "verify" => {
-            todo!()
+            let path = args.next();
+
+            if let Some(path) = path
+                && path.ends_with("Cargo.toml")
+            {
+                let content = std::fs::read_to_string(path).unwrap();
+                verify::verify(&content);
+            } else {
+                let content = {
+                    let mut command = std::process::Command::new("cargo");
+                    command.args([
+                        "metadata",
+                        "--offline",
+                        "--format-version",
+                        "1",
+                        "--no-deps",
+                    ]);
+
+                    let output = command.output()?;
+                    String::from_utf8(output.stdout)?
+                };
+
+                let result = {
+                    use simple_json_parser::{JSONKey, RootJSONValue, parse as parse_json};
+
+                    parse_json(&content, |keys, value| {
+                        if let &[
+                            JSONKey::Slice("packages"),
+                            JSONKey::Index(_),
+                            JSONKey::Slice("manifest_path"),
+                        ] = keys
+                        {
+                            let RootJSONValue::String(toml_path) = value else {
+                                panic!();
+                            };
+
+                            let content = std::fs::read_to_string(toml_path).unwrap();
+
+                            verify::verify(&content);
+                        }
+                    })
+                };
+
+                assert!(result.is_ok(), "JSON did not parse");
+            }
+
+            Ok(())
         }
-    match args.next().as_deref() {
-        Some("publish") => {
-            todo!();
-        }
-        Some("verify") => {
-            todo!();
-        }
-        Some("change-version") => {
         "change-version" => {
             let Some(argument) = args.next() else {
                 panic!("expected version argument");
