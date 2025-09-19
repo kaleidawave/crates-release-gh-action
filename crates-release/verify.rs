@@ -127,6 +127,9 @@ pub fn verify(source: &str) {
                     if value.len() > 20 {
                         eprintln!("Keyword must be at most 20 characters");
                     }
+                    if let Some(chr) = value.chars().next() && !chr.is_alphanumeric() {
+                        eprintln!("First char {chr:?} must be alphanumeric");
+                    }
                     if let Some(chr) = value.chars().find(|chr| {
                         !(chr.is_ascii()
                             && (chr.is_alphanumeric() || matches!(chr, '_' | '-' | '+')))

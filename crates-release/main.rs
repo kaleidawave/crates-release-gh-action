@@ -86,6 +86,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 ]);
 
                 let output = command.output()?;
+
+                if let Some(101) = output.status.code() {
+                    return Err(Box::from("cargo metadata returned 101. make sure you are in a cargo workspace"));
+                }
+
                 String::from_utf8(output.stdout)?
             };
 
@@ -117,12 +122,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 })
             };
 
+            if changes.is_empty() {
+                panic!("no crates update. make sure you are in a cargo workspace");
+            }
+
             let github_output_file = std::env::vars()
                 .find_map(|(name, value)| (name == "GITHUB_OUTPUT").then_some(value));
 
             if let Some(github_output_file) = github_output_file {
                 use std::fs::File;
                 use std::io::Write;
+                use json_builder_macro::ToJSON;
 
                 let mut file = File::options()
                     .append(true)
@@ -136,32 +146,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     "*multiple"
                 };
 
-                writeln!(&mut file, "new_version={value}").unwrap();
+                // single version
+                writeln!(&mut file, "new-version={value}").unwrap();
 
                 // json_array
-                {
-                    let mut buf = String::new();
-                    json_builder_macro::ToJSON::append(
-                        &changes
-                            .iter()
-                            .map(|(k, v)| format!("{k}={v}"))
-                            .collect::<Vec<_>>(),
-                        &mut buf,
-                    );
-                    writeln!(&mut file, "new_versions={buf}").unwrap();
-                }
+                let versions_array = changes
+                        .iter()
+                        .map(|(k, v)| format!("{k}={v}"))
+                        .collect::<Vec<_>>()
+                        .as_json_string();
+                writeln!(&mut file, "new-versions={versions_array}").unwrap();
 
                 // json_object
-                {
-                    let mut buf = String::new();
-                    json_builder_macro::ToJSON::append(&changes, &mut buf);
-                    writeln!(&mut file, "new-versions-json-object={buf}").unwrap();
-                }
+                let versions_object = changes.as_json_string();
+                writeln!(&mut file, "new-versions-json-object={versions_object}").unwrap();
 
-                {
-                    let description = format(&changes);
-                    writeln!(&mut file, "new-versions-description={description}").unwrap();
-                }
+                // description
+                let description = format(&changes);
+                writeln!(&mut file, "new-versions-description={description}").unwrap();
 
                 // per thingy
                 for (name, new_version) in changes {
@@ -201,8 +203,7 @@ fn format(changes: &HashMap<String, String>) -> String {
         description.push_str(" and ");
     }
 
-    {
-        let (name, version) = values.next().unwrap();
+    if let Some((name, version)) = values.next() {
         description.push_str(name);
         description.push_str(" to ");
         description.push_str(version);

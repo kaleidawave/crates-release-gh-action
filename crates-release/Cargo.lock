@@ -26,9 +26,9 @@ dependencies = [
 
 [[package]]
 name = "json-builder-macro"
-version = "0.0.1"
+version = "0.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90de97f3b813b86733b2be79ff99069b36a1414f34fad252536723415d342ecd"
+checksum = "9aa0a35ce526cad28e8487490a9852c420ab24f130587c96a5cb6ba64d9e038d"
 
 [[package]]
 name = "proc-macro2"
@@ -92,7 +92,7 @@ source = "git+https://github.com/kaleidawave/simple-json-parser.git?branch=impro
 [[package]]
 name = "simple-toml-parser"
 version = "0.0.1"
-source = "git+https://github.com/kaleidawave/simple-toml-parser.git?branch=improvements#e4125a54ffaa75852aae63199006b92d5ca3c3e8"
+source = "git+https://github.com/kaleidawave/simple-toml-parser.git?branch=improvements#af7f0466aa8203c20d7860673f7f42a20d4ad0ec"
 
 [[package]]
 name = "syn"
