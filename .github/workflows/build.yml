@@ -1,7 +1,9 @@
 name: Build assets for projects
 
 on:
-  push
+  push:
+    paths:
+      - crates-release/**
 
 jobs:
   publish-assets:

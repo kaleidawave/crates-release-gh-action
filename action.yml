@@ -65,8 +65,6 @@ runs:
       curl -L 'https://github.com/kaleidawave/crates-release-gh-action/releases/download/assets/crates-release' > "$HOME/.local/bin/crates-release"
       chmod +x "$HOME/.local/bin/crates-release"
 
-      ./$HOME/.local/bin/crates-release change-version ${{ inputs.version }}
-
   # if for some reason this is run on windows?
   - id: install-windows
     shell: bash
