@@ -18,10 +18,17 @@ name = "crates-release"
 version = "0.0.0"
 dependencies = [
  "codespan-reporting",
+ "json-builder-macro",
  "semver",
  "simple-json-parser",
  "simple-toml-parser",
 ]
+
+[[package]]
+name = "json-builder-macro"
+version = "0.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "90de97f3b813b86733b2be79ff99069b36a1414f34fad252536723415d342ecd"
 
 [[package]]
 name = "proc-macro2"

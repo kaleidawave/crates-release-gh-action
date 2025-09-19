@@ -3,10 +3,13 @@ pub struct Options {
     pub dry_run: bool,
 }
 
+pub type VersionChanges = std::collections::HashMap<String, String>;
+
 pub fn update_toml(
     path: &std::path::Path,
     transformation: &ProjectTransformation,
     options: Options,
+    version_changes: &mut VersionChanges,
 ) {
     use simple_toml_parser::{RootTOMLValue, TOMLKey, parse_toml};
     use std::fs::File;
@@ -37,20 +40,7 @@ pub fn update_toml(
                 .get_transformation_for_package(name)
                 .apply(existing_version);
 
-            let github_output_file = std::env::vars()
-                .find_map(|(name, value)| (name == "GITHUB_OUTPUT").then_some(value));
-
-            if let Some(github_output_file) = github_output_file {
-                use std::io::Write;
-
-                eprintln!("writing '{name}={new_version_}' to {github_output_file}");
-                let mut file = File::options()
-                    .append(true)
-                    .create(true)
-                    .open(github_output_file)
-                    .expect("cannot open file");
-                writeln!(&mut file, "{name}={new_version_}").unwrap();
-            }
+            version_changes.insert(name.to_owned(), new_version_.to_string());
 
             toml_changes.push((start..(start + raw.len()), new_version_.to_string()));
             new_version = Some(new_version_);
@@ -70,7 +60,7 @@ pub fn update_toml(
                 } else if let Some("toml") = extension {
                     let new_version =
                         ProjectTransformation::Singular(Transformation::Exact(version));
-                    update_toml(&path, &new_version, options);
+                    update_toml(&path, &new_version, options, version_changes);
                 } else {
                     eprintln!("Cannot update {path}", path = path.display());
                 }
