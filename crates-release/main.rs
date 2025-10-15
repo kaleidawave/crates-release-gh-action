@@ -7,10 +7,17 @@ use std::str::FromStr;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut args = std::env::args().skip(1);
 
-    match args.next().as_deref().unwrap_or("help") {
-        "publish" => {
-            todo!("change version + cargo publish + git commit");
+    match args.next().as_deref().unwrap_or("--help") {
+        "info" | "--help" => {
+            println!("crates-release");
+            println!("helpers for publishing crate(s)");
+            println!("update: Updates version fields across `Cargo.toml`s");
+            println!(
+                "verify: verifys and lints `Cargo.toml`s for whether they are ready to be published"
+            );
+            Ok(())
         }
+
         "verify" => {
             let path = args.next();
 
@@ -75,52 +82,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let transformation = update::ProjectTransformation::from_str(&argument)?;
 
-            let content = {
-                let mut command = std::process::Command::new("cargo");
-                command.args([
-                    "metadata",
-                    "--offline",
-                    "--format-version",
-                    "1",
-                    "--no-deps",
-                ]);
-
-                let output = command.output()?;
-
-                if let Some(101) = output.status.code() {
-                    return Err(Box::from("cargo metadata returned 101. make sure you are in a cargo workspace"));
-                }
-
-                String::from_utf8(output.stdout)?
-            };
-
             let options = update::Options { dry_run };
 
-            let mut changes: update::VersionChanges = HashMap::new();
-
-            let result = {
-                use simple_json_parser::{JSONKey, RootJSONValue, parse as parse_json};
-
-                parse_json(&content, |keys, value| {
-                    if let &[
-                        JSONKey::Slice("packages"),
-                        JSONKey::Index(_),
-                        JSONKey::Slice("manifest_path"),
-                    ] = keys
-                    {
-                        let RootJSONValue::String(toml_path) = value else {
-                            panic!();
-                        };
-
-                        update::update_toml(
-                            std::path::Path::new(toml_path),
-                            &transformation,
-                            options,
-                            &mut changes,
-                        );
-                    }
-                })
-            };
+            let changes = update::update_cargo_workspace(&transformation, options)?;
 
             if changes.is_empty() {
                 panic!("no crates update. make sure you are in a cargo workspace");
@@ -130,9 +94,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .find_map(|(name, value)| (name == "GITHUB_OUTPUT").then_some(value));
 
             if let Some(github_output_file) = github_output_file {
+                use json_builder_macro::ToJSON;
                 use std::fs::File;
                 use std::io::Write;
-                use json_builder_macro::ToJSON;
 
                 let mut file = File::options()
                     .append(true)
@@ -143,7 +107,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let value = if changes.len() == 1 {
                     changes.values().next().unwrap()
                 } else {
-                    "*multiple"
+                    "*multiple*"
                 };
 
                 // single version
@@ -151,10 +115,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 // json_array
                 let versions_array = changes
-                        .iter()
-                        .map(|(k, v)| format!("{k}={v}"))
-                        .collect::<Vec<_>>()
-                        .as_json_string();
+                    .iter()
+                    .map(|(k, v)| format!("{k}={v}"))
+                    .collect::<Vec<_>>()
+                    .as_json_string();
+
                 writeln!(&mut file, "new-versions={versions_array}").unwrap();
 
                 // json_object
@@ -172,15 +137,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
 
-            assert!(result.is_ok(), "JSON did not parse");
-
             Ok(())
         }
-        "info" | "--help" => {
-            println!("crates-release");
-            println!("helper for publishing crate(s). Updates version fields across `Cargo.toml`s");
-            println!("verifys and lints `Cargo.toml`s before publish");
-            Ok(())
+        "publish" => {
+            todo!("change version + cargo publish + git commit");
         }
         command => {
             panic!("unknown command {command:?}. See --help");
