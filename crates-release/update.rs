@@ -6,6 +6,14 @@ pub struct Options {
     pub dry_run: bool,
 }
 
+pub struct Manifest {
+    pub content: String,
+    pub association: Option<String>,
+    pub name_span: SliceRange,
+    pub version_span: SliceRange,
+    pub local_dependency_spans: Vec<(SliceRange, SliceRange)>,
+}
+
 pub type VersionChanges = std::collections::HashMap<String, String>;
 pub type Manifests = Vec<(std::path::PathBuf, Manifest)>;
 
@@ -40,7 +48,11 @@ pub fn update_cargo_workspace(
     let mut version_changes: VersionChanges = VersionChanges::new();
     let mut manifests: Manifests = Manifests::new();
 
+    let mut workspace_members = 0;
+    let mut workspace_version_sync = false;
+
     let result = parse_json(&cargo_metadata, |keys, value| {
+        // We pass the path, as we want positional information
         if let &[
             JSONKey::Slice("packages"),
             JSONKey::Index(_),
@@ -51,25 +63,55 @@ pub fn update_cargo_workspace(
                 panic!();
             };
 
-            let result = parse_cargo_toml(Path::new(path), &mut manifests, None);
+            workspace_members += 1;
 
-            // TODO lift error through
-            result.unwrap();
+            let path = Path::new(path);
+
+            // Skip if already read from version_sync
+            let skip = manifests
+                .iter()
+                .any(|(manifest_path, _)| path == manifest_path);
+
+            if !skip {
+                let result = parse_cargo_toml(path, &mut manifests, None);
+
+                // TODO lift error through
+                result.unwrap();
+            }
+        } else if let &[JSONKey::Slice("metadata"), JSONKey::Slice("version_sync")] = keys {
+            workspace_version_sync = matches!(value, RootJSONValue::Boolean(true));
         }
     });
 
     assert!(result.is_ok(), "JSON did not parse");
 
-    // Pass one: calculate version changes
-    for (_, manifest) in &manifests {
-        let name = &manifest.content[manifest.name_span.clone()];
-        let existing_version = &manifest.content[manifest.version_span.clone()];
-        let existing_version = semver::Version::parse(existing_version).unwrap();
-        let new_version: semver::Version = transformation
-            .get_transformation_for_package(name)
-            .apply(existing_version);
+    if let ProjectTransformation::Singular(_) = transformation
+        && !workspace_version_sync
+        && workspace_members > 1
+    {
+        return Err(Box::from(
+            "updating workspace with >1 package with single transform requires 'metadata.version_sync = true'",
+        ));
+    }
 
-        version_changes.insert(name.to_owned(), new_version.to_string());
+    // Pass one: calculate version changes
+    for (_, manifest) in manifests.iter().rev() {
+        let name = manifest.content[manifest.name_span.clone()].to_owned();
+
+        // Can happen for version_sync versions
+        if let Some(ref association) = manifest.association {
+            // This is okay because manifests order is
+            let exsting = version_changes.get(association).unwrap().clone();
+            version_changes.insert(name, exsting);
+        } else {
+            let existing_version = &manifest.content[manifest.version_span.clone()];
+            let existing_version = semver::Version::parse(existing_version).unwrap();
+            let new_version: semver::Version = transformation
+                .get_transformation_for_package(&name)
+                .apply(existing_version);
+
+            version_changes.insert(name, new_version.to_string());
+        }
     }
 
     // Pass two: update versions, associates and path dependencies and write to file
@@ -112,18 +154,12 @@ pub fn update_cargo_workspace(
     Ok(version_changes)
 }
 
-pub struct Manifest {
-    pub content: String,
-    pub association: Option<String>,
-    pub name_span: SliceRange,
-    pub version_span: SliceRange,
-    pub local_dependency_spans: Vec<(SliceRange, SliceRange)>,
-}
-
-fn is_associated_key_chain(keys: &[simple_toml_parser::TOMLKey]) -> bool {
+fn is_version_sync_key_chain(keys: &[simple_toml_parser::TOMLKey]) -> bool {
     use simple_toml_parser::TOMLKey::{Index as I, Slice as S};
-    matches!(keys, &[S("package"), S("metadata"), S("associated"), I(_),])
-        || matches!(keys, &[S("package"), S("metadata"), S("associated")])
+    matches!(
+        keys,
+        &[S("package"), S("metadata"), S("version_sync"), I(_)]
+    ) || matches!(keys, &[S("package"), S("metadata"), S("version_sync")])
 }
 
 fn extract_slice_position(subslice: &str, slice: &str) -> SliceRange {
@@ -163,18 +199,31 @@ fn parse_cargo_toml(
             };
 
             manifest.version_span = extract_slice_position(value.raw(), &manifest.content);
-        } else if is_associated_key_chain(keys) {
+        } else if is_version_sync_key_chain(keys) {
             if let RootTOMLValue::String(nested) = value {
-                let path = path.parent().unwrap().join(nested.raw());
-                let extension = path.extension().and_then(|ext| ext.to_str());
+                let path = path
+                    .parent()
+                    .unwrap()
+                    .join(nested.raw())
+                    .canonicalize()
+                    .unwrap();
 
+                let path = if path.is_dir() {
+                    // TODO if exists, else package.json
+                    path.join("Cargo.toml")
+                } else {
+                    path
+                };
+
+                let extension = path.extension().and_then(|ext| ext.to_str());
                 let associate = Some(manifest.content[manifest.name_span.clone()].to_owned());
+
                 if let Some("json") = extension {
                     // TODO lift error
-                    parse_package_json(std::path::Path::new(&path), manifests, associate).unwrap();
+                    parse_package_json(&path, manifests, associate).unwrap();
                 } else if let Some("toml") = extension {
                     // TODO lift error
-                    parse_cargo_toml(std::path::Path::new(&path), manifests, associate).unwrap();
+                    parse_cargo_toml(&path, manifests, associate).unwrap();
                 } else {
                     eprintln!(
                         "Cannot update {path}. Unknown format",
@@ -207,7 +256,7 @@ fn parse_cargo_toml(
     Ok(())
 }
 
-/// for associated versions
+/// for version_sync versions
 fn parse_package_json(
     path: &std::path::Path,
     manifests: &mut Manifests,

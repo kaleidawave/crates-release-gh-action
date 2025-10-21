@@ -2,17 +2,47 @@ use semver::Version;
 use simple_toml_parser::{RootTOMLValue, TOMLKey, parse_toml};
 use std::collections::HashSet;
 
-static CATEGORIES: &str = "accessibility,aerospace,aerospace::drones,aerospace::protocols,aerospace::simulation,aerospace::space-protocols,aerospace::unmanned-aerial-vehicles,algorithms,api-bindings,asynchronous,authentication,caching,command-line-interface,command-line-utilities,compilers,compression,computer-vision,concurrency,config,cryptography,cryptography::cryptocurrencies,data-structures,database,database-implementations,date-and-time,development-tools,development-tools::build-utils,development-tools::cargo-plugins,development-tools::debugging,development-tools::ffi,development-tools::procedural-macro-helpers,development-tools::profiling,development-tools::testing,email,embedded,emulators,encoding,external-ffi-bindings,filesystem,finance,game-development,game-engines,games,graphics,gui,hardware-support,internationalization,localization,mathematics,memory-management,multimedia,multimedia::audio,multimedia::encoding,multimedia::images,multimedia::video,network-programming,no-std,no-std::no-alloc,os,os::android-apis,os::freebsd-apis,os::linux-apis,os::macos-apis,os::unix-apis,os::windows-apis,parser-implementations,parsing,rendering,rendering::data-formats,rendering::engine,rendering::graphics-api,rust-patterns,science,science::bioinformatics,science::bioinformatics::genomics,science::bioinformatics::proteomics,science::bioinformatics::sequence-analysis,science::geo,science::neuroscience,science::robotics,security,simulation,template-engine,text-editors,text-processing,value-formatting,virtualization,visualization,wasm,web-programming,web-programming::http-client,web-programming::http-server,web-programming::websocket";
+pub static CATEGORIES: &str = "accessibility,aerospace,aerospace::drones,aerospace::protocols,aerospace::simulation,aerospace::space-protocols,aerospace::unmanned-aerial-vehicles,algorithms,api-bindings,asynchronous,authentication,caching,command-line-interface,command-line-utilities,compilers,compression,computer-vision,concurrency,config,cryptography,cryptography::cryptocurrencies,data-structures,database,database-implementations,date-and-time,development-tools,development-tools::build-utils,development-tools::cargo-plugins,development-tools::debugging,development-tools::ffi,development-tools::procedural-macro-helpers,development-tools::profiling,development-tools::testing,email,embedded,emulators,encoding,external-ffi-bindings,filesystem,finance,game-development,game-engines,games,graphics,gui,hardware-support,internationalization,localization,mathematics,memory-management,multimedia,multimedia::audio,multimedia::encoding,multimedia::images,multimedia::video,network-programming,no-std,no-std::no-alloc,os,os::android-apis,os::freebsd-apis,os::linux-apis,os::macos-apis,os::unix-apis,os::windows-apis,parser-implementations,parsing,rendering,rendering::data-formats,rendering::engine,rendering::graphics-api,rust-patterns,science,science::bioinformatics,science::bioinformatics::genomics,science::bioinformatics::proteomics,science::bioinformatics::sequence-analysis,science::geo,science::neuroscience,science::robotics,security,simulation,template-engine,text-editors,text-processing,value-formatting,virtualization,visualization,wasm,web-programming,web-programming::http-client,web-programming::http-server,web-programming::websocket";
 
-static RESERVED: &str = "as,break,const,continue,crate,else,enum,extern,false,fn,for,if,impl,in,let,loop,match,mod,move,mut,pub,ref,return,self,Self,static,struct,super,trait,true,type,unsafe,use,where,while,async,await,dyn,abstract,become,box,do,final,macro,override,priv,typeof,unsized,virtual,yield,try,gen";
+pub static RESERVED: &str = "as,break,const,continue,crate,else,enum,extern,false,fn,for,if,impl,in,let,loop,match,mod,move,mut,pub,ref,return,self,Self,static,struct,super,trait,true,type,unsafe,use,where,while,async,await,dyn,abstract,become,box,do,final,macro,override,priv,typeof,unsized,virtual,yield,try,gen";
 
-// TODO should we also require formatting. aka no `package.sdsd`
+#[derive(Default)]
+pub(crate) struct State {
+    pub(crate) license: bool,
+    pub(crate) last_dependency_name: String,
+    pub(crate) last_dev_dependency_name: String,
+    pub(crate) last_build_dependency_name: String,
+}
+
+impl State {
+    pub(crate) fn get_last_dependency_name(&mut self, mode: &str) -> &mut String {
+        match mode {
+            "dependencies" => &mut self.last_dependency_name,
+            "dev-dependencies" => &mut self.last_dev_dependency_name,
+            "build-dependencies" => &mut self.last_build_dependency_name,
+            name => unreachable!("{name}"),
+        }
+    }
+}
+
 // TODO want `simple-toml-parser` to have more positional information
 // TODO check unique
 // TODO return result
 pub fn verify(source: &str) {
     let mut required = HashSet::from(["name"]);
-    let mut recommended = HashSet::from(["repository", "5-keywords"]);
+    let mut recommended = HashSet::from([
+        "version",
+        "edition",
+        "description",
+        "repository",
+        "5-keywords",
+        "3-categories",
+    ]);
+
+    let mut state = State::default();
+
+    // TODO as parameter
+    let lint = true;
 
     let result = parse_toml(source, |keys, value| {
         match keys {
@@ -59,11 +89,21 @@ pub fn verify(source: &str) {
                         }
                         recommended.take(key);
                     }
-                    "edition" => {}
+                    "edition" => {
+                        recommended.take(key);
+                    }
                     "rust-version" => {}
                     "default-run" => {}
-                    "description" => {}
-                    "license" => {}
+                    "description" => {
+                        recommended.take(key);
+                    }
+                    "license" => {
+                        state.license = true;
+                    }
+                    "license-file" => {
+                        // TODO check path
+                        state.license = true;
+                    }
                     "homepage" => {}
                     "readme" => {}
                     "documentation" => {}
@@ -108,12 +148,11 @@ pub fn verify(source: &str) {
                     todo!("error here")
                 }
 
-                if *idx == 3 {
-                    // remove here
-                    // eprintln!("warning: recommened 3 characters");
+                if *idx == 2 {
+                    recommended.take("3-categories");
                 }
 
-                if *idx > 4 {
+                if *idx == 4 {
                     eprintln!("Cannot have more than 5 categories");
                 }
             }
@@ -127,7 +166,9 @@ pub fn verify(source: &str) {
                     if value.len() > 20 {
                         eprintln!("Keyword must be at most 20 characters");
                     }
-                    if let Some(chr) = value.chars().next() && !chr.is_alphanumeric() {
+                    if let Some(chr) = value.chars().next()
+                        && !chr.is_alphanumeric()
+                    {
                         eprintln!("First char {chr:?} must be alphanumeric");
                     }
                     if let Some(chr) = value.chars().find(|chr| {
@@ -146,7 +187,7 @@ pub fn verify(source: &str) {
                     recommended.take("5-keywords");
                 }
 
-                if *idx > 4 {
+                if *idx == 5 {
                     eprintln!("Cannot have more than 5 keywords");
                 }
             }
@@ -163,18 +204,38 @@ pub fn verify(source: &str) {
             [
                 TOMLKey::Slice("target"),
                 TOMLKey::Slice(_cfg),
-                TOMLKey::Slice("dependencies" | "dev-dependencies" | "build-dependencies"),
+                TOMLKey::Slice(mode @ ("dependencies" | "dev-dependencies" | "build-dependencies")),
                 TOMLKey::Slice(dependency_name),
                 rest @ ..,
             ] => {
+                if let [] | [TOMLKey::Slice("version")] = rest
+                    && lint
+                {
+                    let last = state.get_last_dependency_name(mode);
+                    if last.as_str() > dependency_name {
+                        eprintln!("{dependency_name} should be defined before {last}")
+                    }
+                    *last = dependency_name.to_string();
+                }
                 // TODO check cfg?
                 check_dependency(dependency_name, rest, value)
             }
             [
-                TOMLKey::Slice("dependencies" | "dev-dependencies" | "build-dependencies"),
+                TOMLKey::Slice(mode @ ("dependencies" | "dev-dependencies" | "build-dependencies")),
                 TOMLKey::Slice(dependency_name),
                 rest @ ..,
-            ] => check_dependency(dependency_name, rest, value),
+            ] => {
+                if let [] | [TOMLKey::Slice("version")] = rest
+                    && lint
+                {
+                    let last = state.get_last_dependency_name(mode);
+                    if last.as_str() > dependency_name {
+                        eprintln!("{dependency_name} should be defined before {last}")
+                    }
+                    *last = dependency_name.to_string();
+                }
+                check_dependency(dependency_name, rest, value)
+            }
             [
                 TOMLKey::Slice("features"),
                 TOMLKey::Slice("default"),
@@ -233,6 +294,10 @@ pub fn verify(source: &str) {
 
     if let Err(err) = result {
         eprintln!("{err:?}");
+    }
+
+    if !state.license {
+        eprintln!("no license of license-file");
     }
 
     for required in required {

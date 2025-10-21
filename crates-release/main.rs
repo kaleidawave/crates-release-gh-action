@@ -9,15 +9,41 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match args.next().as_deref().unwrap_or("--help") {
         "info" | "--help" => {
-            println!("crates-release");
-            println!("helpers for publishing crate(s)");
-            println!("update: Updates version fields across `Cargo.toml`s");
-            println!(
-                "verify: verifys and lints `Cargo.toml`s for whether they are ready to be published"
-            );
+            let after = args.next();
+            if let Some("reserved") = after.as_deref() {
+                println!("Reserved:");
+                for (i, word) in verify::RESERVED.split(',').enumerate() {
+                    let i = i % 6;
+                    if i == 5 {
+                        println!();
+                    } else if i == 0 {
+                        print!("{word}");
+                    } else {
+                        print!(" {word}");
+                    }
+                }
+            } else if let Some("categories") = after.as_deref() {
+                println!("Categories:");
+                for (i, word) in verify::CATEGORIES.split(',').enumerate() {
+                    let i = i % 6;
+                    if i == 5 {
+                        println!();
+                    } else if i == 0 {
+                        print!("{word}");
+                    } else {
+                        print!(" {word}");
+                    }
+                }
+            } else {
+                println!("crates-release");
+                println!("helpers for publishing crate(s)");
+                println!("update: Updates version fields across `Cargo.toml`s");
+                println!(
+                    "verify: verifys and lints `Cargo.toml`s for whether they are ready to be published"
+                );
+            }
             Ok(())
         }
-
         "verify" => {
             let path = args.next();
 
