@@ -36,75 +36,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
             } else {
-                println!("crates-release");
+                let version = option_env!("CARGO_PKG_VERSION").unwrap_or_default();
+                let run_id = option_env!("GITHUB_RUN_ID");
+                let date = option_env!("GIT_LAST_COMMIT").unwrap_or_default();
+                let after = run_id
+                    .map(|commit| format!(" (commit {commit} {date})"))
+                    .unwrap_or_default();
+
+                println!("crates-release {version}{after}");
                 println!("helpers for publishing crate(s)");
-                println!("update: Updates version fields across `Cargo.toml`s");
-                println!(
-                    "verify: verifys and lints `Cargo.toml`s for whether they are ready to be published"
-                );
-            }
-            Ok(())
-        }
-        "verify" => {
-            let path = args.next();
-
-            if let Some(path) = path
-                && path.ends_with("Cargo.toml")
-            {
-                let path = Path::new(&path);
-                let content = std::fs::read_to_string(path).unwrap();
-                // TODO this might not quite be the root. Maybe cwd?
-                let root = path.parent().unwrap();
-                verify::verify(&content, path, root);
-            } else {
-                let content = {
-                    let mut command = std::process::Command::new("cargo");
-                    command.args([
-                        "metadata",
-                        "--offline",
-                        "--format-version",
-                        "1",
-                        "--no-deps",
-                    ]);
-
-                    let output = command.output()?;
-                    String::from_utf8(output.stdout)?
-                };
-
-                let mut toml_paths = Vec::new();
-                let mut workspace_root = PathBuf::new();
-
-                let result = {
-                    use simple_json_parser::{JSONKey, RootJSONValue, parse as parse_json};
-
-                    parse_json(&content, |keys, value| {
-                        if let &[
-                            JSONKey::Slice("packages"),
-                            JSONKey::Index(_),
-                            JSONKey::Slice("manifest_path"),
-                        ] = keys
-                        {
-                            let RootJSONValue::String(toml_path) = value else {
-                                panic!();
-                            };
-                            toml_paths.push(PathBuf::from(toml_path));
-                        } else if let &[JSONKey::Slice("workspace_root")] = keys {
-                            let RootJSONValue::String(toml_path) = value else {
-                                panic!();
-                            };
-                            workspace_root = PathBuf::from(toml_path);
-                        }
-                    })
-                };
-
-                for toml_path in toml_paths {
-                    let content = std::fs::read_to_string(&toml_path).unwrap();
-                    verify::verify(&content, &toml_path, &workspace_root);
+                let commands: &[(&str, &str)] = &[
+                    (
+                        "change-version",
+                        "Updates version fields across `Cargo.toml`s",
+                    ),
+                    (
+                        "verify",
+                        "verifies and lints `Cargo.toml`s for whether they are ready to be published",
+                    ),
+                ];
+                for (name, description) in commands {
+                    println!("{name}: {description}");
                 }
-
-                assert!(result.is_ok(), "JSON did not parse");
             }
-
             Ok(())
         }
         "change-version" => {
@@ -194,6 +148,68 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .arg("c")
                 .output()
                 .unwrap();
+
+            Ok(())
+        }
+        "verify" => {
+            let path = args.next();
+
+            if let Some(path) = path
+                && path.ends_with("Cargo.toml")
+            {
+                let path = Path::new(&path);
+                let content = std::fs::read_to_string(path).unwrap();
+                // TODO this might not quite be the root. Maybe cwd?
+                let root = path.parent().unwrap();
+                verify::verify(&content, path, root);
+            } else {
+                let content = {
+                    let mut command = std::process::Command::new("cargo");
+                    command.args([
+                        "metadata",
+                        "--offline",
+                        "--format-version",
+                        "1",
+                        "--no-deps",
+                    ]);
+
+                    let output = command.output()?;
+                    String::from_utf8(output.stdout)?
+                };
+
+                let mut toml_paths = Vec::new();
+                let mut workspace_root = PathBuf::new();
+
+                let result = {
+                    use simple_json_parser::{JSONKey, RootJSONValue, parse as parse_json};
+
+                    parse_json(&content, |keys, value| {
+                        if let &[
+                            JSONKey::Slice("packages"),
+                            JSONKey::Index(_),
+                            JSONKey::Slice("manifest_path"),
+                        ] = keys
+                        {
+                            let RootJSONValue::String(toml_path) = value else {
+                                panic!();
+                            };
+                            toml_paths.push(PathBuf::from(toml_path));
+                        } else if let &[JSONKey::Slice("workspace_root")] = keys {
+                            let RootJSONValue::String(toml_path) = value else {
+                                panic!();
+                            };
+                            workspace_root = PathBuf::from(toml_path);
+                        }
+                    })
+                };
+
+                for toml_path in toml_paths {
+                    let content = std::fs::read_to_string(&toml_path).unwrap();
+                    verify::verify(&content, &toml_path, &workspace_root);
+                }
+
+                assert!(result.is_ok(), "JSON did not parse");
+            }
 
             Ok(())
         }
