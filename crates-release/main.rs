@@ -2,8 +2,8 @@ mod update;
 mod verify;
 
 use std::collections::HashMap;
-use std::str::FromStr;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut args = std::env::args().skip(1);
@@ -88,9 +88,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 panic!();
                             };
                             toml_paths.push(PathBuf::from(toml_path));
-                        } else if let &[
-                            JSONKey::Slice("workspace_root")
-                        ] = keys {
+                        } else if let &[JSONKey::Slice("workspace_root")] = keys {
                             let RootJSONValue::String(toml_path) = value else {
                                 panic!();
                             };

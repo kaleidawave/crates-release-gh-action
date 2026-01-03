@@ -11,19 +11,22 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
         include:
         - os: windows-latest
           platform-name: x86_64-pc-windows
           executable-extension: ".exe"
         - os: ubuntu-latest
           platform-name: x86_64-unknown-linux
+        - os: macos-latest
+          platform-name: aarch64-apple-darwin
 
     runs-on: ${{ matrix.os }}
 
     env:
       LEVEL: debug
-      GH_RELEASE: assets
+      OUT: target/debug
+      GH_RELEASE: canary
 
     steps:
       - uses: actions/checkout@v4
@@ -31,10 +34,10 @@ jobs:
 
       - name: Set variables
         id: information
+        shell: bash
         run: |
           echo "GITHUB_RUN_DATE=$(TZ="Europe/London" date +"%Y-%m-%d %T")" >> "$GITHUB_OUTPUT"
           echo "GIT_LAST_COMMIT=$(git log -n 1 --format="%H")" >> "$GITHUB_OUTPUT"
-        shell: bash
 
       - name: Build binary
         working-directory: crates-release
@@ -45,11 +48,10 @@ jobs:
         
       - name: Publish binary
         working-directory: crates-release
-        run: |
-          FROM="./target/$LEVEL/crates-release${{ matrix.executable-extension }}"
-          TO="crates-release-${{ matrix.platform-name }}${{ matrix.executable-extension }}"
-
-          gh release upload $GH_RELEASE "$FROM#$TO" --clobber
         shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+        run: |
+          FROM="${{ env.OUT }}/crates-release${{ matrix.executable-extension }}"
+          TO="crates-release-${{ github.ref_name }}-${{ matrix.platform-name }}${{ matrix.executable-extension }}"
+          mv $FROM $TO
+          gh release upload $GH_RELEASE "$TO" --clobber
