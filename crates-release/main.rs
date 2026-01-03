@@ -3,6 +3,7 @@ mod verify;
 
 use std::collections::HashMap;
 use std::str::FromStr;
+use std::path::{Path, PathBuf};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut args = std::env::args().skip(1);
@@ -50,8 +51,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             if let Some(path) = path
                 && path.ends_with("Cargo.toml")
             {
+                let path = Path::new(&path);
                 let content = std::fs::read_to_string(path).unwrap();
-                verify::verify(&content);
+                // TODO this might not quite be the root. Maybe cwd?
+                let root = path.parent().unwrap();
+                verify::verify(&content, path, root);
             } else {
                 let content = {
                     let mut command = std::process::Command::new("cargo");
@@ -67,6 +71,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     String::from_utf8(output.stdout)?
                 };
 
+                let mut toml_paths = Vec::new();
+                let mut workspace_root = PathBuf::new();
+
                 let result = {
                     use simple_json_parser::{JSONKey, RootJSONValue, parse as parse_json};
 
@@ -80,13 +87,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             let RootJSONValue::String(toml_path) = value else {
                                 panic!();
                             };
-
-                            let content = std::fs::read_to_string(toml_path).unwrap();
-
-                            verify::verify(&content);
+                            toml_paths.push(PathBuf::from(toml_path));
+                        } else if let &[
+                            JSONKey::Slice("workspace_root")
+                        ] = keys {
+                            let RootJSONValue::String(toml_path) = value else {
+                                panic!();
+                            };
+                            workspace_root = PathBuf::from(toml_path);
                         }
                     })
                 };
+
+                for toml_path in toml_paths {
+                    let content = std::fs::read_to_string(&toml_path).unwrap();
+                    verify::verify(&content, &toml_path, &workspace_root);
+                }
 
                 assert!(result.is_ok(), "JSON did not parse");
             }
@@ -99,10 +115,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
 
             let mut dry_run = false;
+            let mut print_new_version = false;
             for arg in args {
-                let arg = arg.as_str();
-                if let "--dry-run" = arg {
-                    dry_run = true;
+                match arg.as_str() {
+                    "--dry-run" => {
+                        dry_run = true;
+                    }
+                    "--print-new-version" => {
+                        print_new_version = true;
+                    }
+                    arg => {
+                        eprintln!("unknown arg {arg:?}");
+                    }
                 }
             }
 
@@ -114,6 +138,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             if changes.is_empty() {
                 panic!("no crates update. make sure you are in a cargo workspace");
+            }
+
+            let new_version = if changes.len() == 1 {
+                changes.values().next().unwrap()
+            } else {
+                "*multiple*"
+            };
+
+            if print_new_version {
+                println!("{new_version}");
             }
 
             let github_output_file = std::env::vars()
@@ -130,14 +164,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .open(&github_output_file)
                     .expect("cannot open file");
 
-                let value = if changes.len() == 1 {
-                    changes.values().next().unwrap()
-                } else {
-                    "*multiple*"
-                };
-
                 // single version
-                writeln!(&mut file, "new-version={value}").unwrap();
+                writeln!(&mut file, "new-version={new_version}").unwrap();
 
                 // json_array
                 let versions_array = changes
@@ -162,6 +190,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     writeln!(&mut file, "{name}={new_version}").unwrap();
                 }
             }
+
+            // Update local dependencies in lockfile
+            std::process::Command::new("cargo")
+                .arg("c")
+                .output()
+                .unwrap();
 
             Ok(())
         }

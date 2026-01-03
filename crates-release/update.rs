@@ -100,9 +100,12 @@ pub fn update_cargo_workspace(
 
         // Can happen for version_sync versions
         if let Some(ref association) = manifest.association {
-            // This is okay because manifests order is
-            let exsting = version_changes.get(association).unwrap().clone();
-            version_changes.insert(name, exsting);
+            // JSON associations have no name
+            if !name.is_empty() {
+                // This is okay because manifests are in order here
+                let exsting = version_changes.get(association).unwrap().clone();
+                version_changes.insert(name, exsting);
+            }
         } else {
             let existing_version = &manifest.content[manifest.version_span.clone()];
             let existing_version = semver::Version::parse(existing_version).unwrap();
