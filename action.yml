@@ -62,7 +62,7 @@ runs:
       mkdir -p "$HOME/.local/bin"
       echo "$HOME/.local/bin" > "$GITHUB_PATH"
 
-      curl -L 'https://github.com/kaleidawave/crates-release-gh-action/releases/download/assets/crates-release' > "$HOME/.local/bin/crates-release"
+      curl -L 'https://github.com/kaleidawave/crates-release-gh-action/releases/download/canary/crates-release-x86_64-unknown-linux' > "$HOME/.local/bin/crates-release"
       chmod +x "$HOME/.local/bin/crates-release"
 
   # if for some reason this is run on windows?
@@ -72,7 +72,7 @@ runs:
     run: |
       mkdir "$HOME/.local/bin"
       echo "$HOME/.local/bin" > "$GITHUB_PATH"
-      curl -L 'https://github.com/kaleidawave/crates-release-gh-action/releases/download/assets/crates-release.exe' > "$HOME/.local/bin/crates-release.exe"
+      curl -L 'https://github.com/kaleidawave/crates-release-gh-action/releases/download/canary/crates-release-x86_64-pc-windows.exe' > "$HOME/.local/bin/crates-release.exe"
 
   - id: updater
     shell: bash
