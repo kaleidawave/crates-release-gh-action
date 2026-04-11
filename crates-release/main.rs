@@ -16,7 +16,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 for (i, word) in verify::RESERVED.split(',').enumerate() {
                     let i = i % 6;
                     if i == 5 {
-                        println!();
+                        println!(" {word}");
                     } else if i == 0 {
                         print!("{word}");
                     } else {
@@ -28,7 +28,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 for (i, word) in verify::CATEGORIES.split(',').enumerate() {
                     let i = i % 6;
                     if i == 5 {
-                        println!();
+                        println!(" {word}");
                     } else if i == 0 {
                         print!("{word}");
                     } else {

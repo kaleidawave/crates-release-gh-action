@@ -1,9 +1,6 @@
 name: Build assets for projects
 
-on:
-  push:
-    paths:
-      - crates-release/**
+on: { push: { paths: [crates-release/**] } }
 
 jobs:
   publish-assets:
@@ -26,7 +23,8 @@ jobs:
     env:
       LEVEL: debug
       OUT: target/debug
-      GH_RELEASE: canary
+      GH_RELEASE: assets
+      BRANCH: '-improvements'
 
     steps:
       - uses: actions/checkout@v4
@@ -52,6 +50,6 @@ jobs:
         env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
         run: |
           FROM="${{ env.OUT }}/crates-release${{ matrix.executable-extension }}"
-          TO="crates-release-${{ github.ref_name }}-${{ matrix.platform-name }}${{ matrix.executable-extension }}"
+          TO="crates-release${{ env.BRANCH }}-${{ matrix.platform-name }}${{ matrix.executable-extension }}"
           mv $FROM $TO
           gh release upload $GH_RELEASE "$TO" --clobber
