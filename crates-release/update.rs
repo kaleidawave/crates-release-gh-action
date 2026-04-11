@@ -17,6 +17,82 @@ pub struct Manifest {
 pub type VersionChanges = std::collections::HashMap<String, String>;
 pub type Manifests = Vec<(std::path::PathBuf, Manifest)>;
 
+pub fn get_version(filter: Option<&str>) -> Result<(), Box<dyn std::error::Error>> {
+    use simple_json_parser::{JSONKey, RootJSONValue, parse as parse_json};
+    use std::path::Path;
+
+    let cargo_metadata = {
+        let mut command = std::process::Command::new("cargo");
+        command.args([
+            "metadata",
+            "--offline",
+            "--format-version",
+            "1",
+            "--no-deps",
+        ]);
+
+        let output = command.output()?;
+
+        if let Some(101) = output.status.code() {
+            return Err(Box::from(
+                "cargo metadata returned 101. make sure you are in a cargo workspace",
+            ));
+        }
+
+        String::from_utf8(output.stdout)?
+    };
+
+    let result = parse_json(&cargo_metadata, |keys, value| {
+        // We pass the path, as we want positional information
+        if let &[
+            JSONKey::Slice("packages"),
+            JSONKey::Index(_),
+            JSONKey::Slice("manifest_path"),
+        ] = keys
+        {
+            use simple_toml_parser::{RootTOMLValue, TOMLKey, parse_toml};
+            let RootJSONValue::String(path) = value else {
+                panic!();
+            };
+
+            let mut package = "";
+            let mut version = "";
+            let path = Path::new(path);
+            let content = std::fs::read_to_string(path).unwrap();
+            let result = parse_toml(&content, |keys, value| {
+                if let &[TOMLKey::Slice("package"), TOMLKey::Slice("name")] = keys {
+                    let RootTOMLValue::String(value) = value else {
+                        panic!();
+                    };
+                    package = value.raw();
+                } else if let &[TOMLKey::Slice("package"), TOMLKey::Slice("version")] = keys {
+                    let RootTOMLValue::String(value) = value else {
+                        panic!();
+                    };
+                    version = value.raw();
+                }
+            });
+
+            if !package.is_empty() && !version.is_empty() {
+                if let Some(expected_package) = filter {
+                    if expected_package == package {
+                        println!("{version}");
+                    }
+                } else {
+                    println!("{package}: {version}");
+                }
+            }
+
+            // TODO lift error through
+            result.unwrap();
+        }
+    });
+
+    result.unwrap();
+
+    Ok(())
+}
+
 pub fn update_cargo_workspace(
     transformation: &ProjectTransformation,
     options: Options,

@@ -61,6 +61,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             Ok(())
         }
+        "get-version" => {
+            let filter = args.next();
+            update::get_version(filter.as_deref())
+        }
         "change-version" => {
             let Some(argument) = args.next() else {
                 panic!("expected version argument");
