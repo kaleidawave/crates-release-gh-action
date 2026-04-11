@@ -1,0 +1,55 @@
+name: Build assets for projects
+
+on: { push: { paths: [crates-release/**] } }
+
+jobs:
+  publish-assets:
+    permissions: write-all
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+        - os: windows-latest
+          platform-name: x86_64-pc-windows
+          executable-extension: ".exe"
+        - os: ubuntu-latest
+          platform-name: x86_64-unknown-linux
+        - os: macos-latest
+          platform-name: aarch64-apple-darwin
+
+    runs-on: ${{ matrix.os }}
+
+    env:
+      LEVEL: debug
+      OUT: target/debug
+      GH_RELEASE: assets
+      BRANCH: '-improvements'
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Set variables
+        id: information
+        shell: bash
+        run: |
+          echo "GITHUB_RUN_DATE=$(TZ="Europe/London" date +"%Y-%m-%d %T")" >> "$GITHUB_OUTPUT"
+          echo "GIT_LAST_COMMIT=$(git log -n 1 --format="%H")" >> "$GITHUB_OUTPUT"
+
+      - name: Build binary
+        working-directory: crates-release
+        run: cargo build
+        env:
+          GITHUB_RUN_DATE: ${{ steps.information.outputs.GITHUB_RUN_DATE }}
+          GIT_LAST_COMMIT: ${{ steps.information.outputs.GIT_LAST_COMMIT }}
+        
+      - name: Publish binary
+        working-directory: crates-release
+        shell: bash
+        env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+        run: |
+          FROM="${{ env.OUT }}/crates-release${{ matrix.executable-extension }}"
+          TO="crates-release${{ env.BRANCH }}-${{ matrix.platform-name }}${{ matrix.executable-extension }}"
+          mv $FROM $TO
+          gh release upload $GH_RELEASE "$TO" --clobber
