@@ -64,7 +64,7 @@ runs:
 
       release_id="assets"
       branch="-improvements"
-      curl -L "https://github.com/kaleidawave/crates-release-gh-action/releases/download/$branch/crates-release$branch-x86_64-unknown-linux" > "$HOME/.local/bin/crates-release"
+      curl -L "https://github.com/kaleidawave/crates-release-gh-action/releases/download/$release_id/crates-release$branch-x86_64-unknown-linux" > "$HOME/.local/bin/crates-release"
       chmod +x "$HOME/.local/bin/crates-release"
 
   # if for some reason this is run on windows?
